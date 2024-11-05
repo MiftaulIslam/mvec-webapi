@@ -5,7 +5,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using Server.Entities.Models;
 using Server.Entities.Models.Auth;
+using Server.Repositories.Interfaces;
 using JwtRegisteredClaimNames = Microsoft.IdentityModel.JsonWebTokens.JwtRegisteredClaimNames;
 
 namespace Server.Controllers
@@ -14,32 +16,66 @@ namespace Server.Controllers
     [ApiController]
     public class AuthController(UserManager<ApplicationUser> userManager, 
         RoleManager<IdentityRole> roleManager,
-        SignInManager<ApplicationUser>signInManager, 
+        SignInManager<ApplicationUser>signInManager,
+        IGenericRepository<User> userRepository,
+        IGenericRepository<Seller> sellerRepository,
         IConfiguration configuration) : ControllerBase
     {
         private readonly UserManager<ApplicationUser> _userManager=userManager;
         private readonly RoleManager<IdentityRole> _roleManager=roleManager;
         private readonly SignInManager<ApplicationUser> _signInManager=signInManager;
+        private readonly IGenericRepository<User> _userRepository=userRepository;
+        private readonly IGenericRepository<Seller> _sellerRepository=sellerRepository;
         private readonly IConfiguration _configuration=configuration;
         
         
 [HttpPost("[action]")]
         public async Task<ActionResult> Register([FromBody]Register entity,[FromQuery] string role)
         {
+            // Extract username from the email
+            var username = $"{entity.Email.Split('@')[0]}_{DateTime.UtcNow:yyyyMMddHHmmss}";
             ApplicationUser user = 
-                new ApplicationUser{UserName = entity.Name, Email = entity.Email};
+                new ApplicationUser{UserName = username, Email = entity.Email};
+           
             if (!await _roleManager.RoleExistsAsync(role))
             {
-                var roleCreationgResult = await _roleManager.CreateAsync(new IdentityRole(entity.Role));
-                if (!roleCreationgResult.Succeeded) return BadRequest("Failed to create role");
+                var roleCreatingResult = await _roleManager.CreateAsync(new IdentityRole(role));
+                if (!roleCreatingResult.Succeeded) return BadRequest("Failed to create role");
                 
             }
             
             var result = await _userManager.CreateAsync(user, entity.Password);
             if (!result.Succeeded) return BadRequest(result.Errors);
             await _userManager.AddToRoleAsync(user, role);
+            switch (role.ToLower())
+            {
+                case "user":
+                {
+                    User newUser = new User
+                    {
+                        Name = entity.Name,
+                        Email = entity.Email,
+                        Phone = entity.Phone
+                    };
+                    await _userRepository.AddEntity(newUser);
+                    break;
+                }
+                case "seller":
+                {
+                    Seller newSeller = new Seller
+                    {
+                        Name = entity.Name,
+                        Email = entity.Email,
+                        Phone = entity.Phone
+                    };
+                    await _sellerRepository.AddEntity(newSeller);
+                    break;
+                }
+            }
+            var saveResult = role.ToLower().Equals("user") ? await _userRepository.Save() :await _sellerRepository.Save();
             return Ok("User registered successfully");
         }
+        
 [HttpPost("[action]")]
         public async Task<ActionResult> Login([FromBody]Login entity)
         {

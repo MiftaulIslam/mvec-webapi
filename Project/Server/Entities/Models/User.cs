@@ -11,7 +11,7 @@ public class User:BaseEntity
     [RegularExpression(@"/^(?:\+?88)?01[13-9]\d{8}$/gm", ErrorMessage = "Invalid phone number")]
     public string Phone { get; set; }= string.Empty;
     public Gender Gender { get; set; }
-    public string Role { get; set; }= string.Empty;
+    public string Role { get; set; } = "User";
     public string Image { get; set; }= string.Empty;
     public DateTimeOffset CreateAt { get; set; } = DateTimeOffset.Now;
     public List<Address>? Address { get; set; } = new List<Address>();

@@ -18,5 +18,4 @@ public class Register
     [RegularExpression(@"^(?:\+?88)?01[3-9]\d{8}$", ErrorMessage = "Invalid phone number")]
     public string Phone { get; set; }= string.Empty;
 
-    [Required] public string Role { get; set; } = string.Empty;
 }
